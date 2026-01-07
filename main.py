@@ -2,13 +2,11 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# Configuración visual
 st.set_page_config(page_title="ON Investor Pro", layout="wide")
 st.title("🚀 ON Investor Pro")
 
-# --- BASE MAESTRA ACTUALIZADA ---
+# --- BASE MAESTRA LIMPIA ---
 base_maestra = {
-    base_maestra = {
     "MGCOD": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
     "YMCJD": {"tasa": 0.0900, "sector": "Petróleo & Gas", "estado": "Vigente"},
     "MR35D": {"tasa": 0.0950, "sector": "Consumo Masivo", "estado": "Vigente"},
@@ -26,13 +24,10 @@ base_maestra = {
     "CICAD": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
     "GEMSA": {"tasa": 0.0000, "sector": "Energía", "estado": "Default"}
 }
-}
 
-# --- ESTADO DE LA APP ---
 if 'cartera' not in st.session_state:
     st.session_state.cartera = pd.DataFrame(columns=["Ticker", "Cantidad", "Sector", "Cobro_Estimado"])
 
-# --- INTERFAZ ---
 st.sidebar.header("Menú de Usuario")
 with st.sidebar.expander("➕ Cargar Nuevo Activo", expanded=True):
     ticker = st.selectbox("Seleccioná Ticker", list(base_maestra.keys()))
@@ -47,7 +42,6 @@ with st.sidebar.expander("➕ Cargar Nuevo Activo", expanded=True):
         }
         st.session_state.cartera = pd.concat([st.session_state.cartera, pd.DataFrame([nuevo_item])], ignore_index=True)
 
-# --- DASHBOARD ---
 if not st.session_state.cartera.empty:
     col1, col2 = st.columns(2)
     with col1:
