@@ -2,39 +2,36 @@ import streamlit as st
 import pandas as pd
 from st_supabase_connection import SupabaseConnection
 
-# Conexión ultra-segura a Supabase
-conn = st.connection("supabase", type=SupabaseConnection, ttl=0)
+# Conexión optimizada
+conn = st.connection("supabase", type=SupabaseConnection)
 
 st.title("🚀 Mi Cartera Permanente")
 
-# Función para traer los datos guardados
+# Función para leer la tabla usuarios_config
 def cargar_datos():
     try:
-        # Traemos email (como usuario) y sheet_url (donde guardaremos el ticker:cantidad)
+        # Traemos las columnas que tenés: email y sheet_url
         res = conn.table("usuarios_config").select("email, sheet_url").execute()
         return pd.DataFrame(res.data)
-    except:
+    except Exception as e:
+        st.error(f"Error de conexión: {e}")
         return pd.DataFrame(columns=["email", "sheet_url"])
 
-# --- FORMULARIO DE CARGA ---
-with st.sidebar.form("formulario_on"):
-    st.header("Cargar Activo")
-    user_email = st.text_input("Tu Email o Nombre")
-    ticker = st.selectbox("Ticker", ["MGCOD", "YMCJD", "MR35D", "IRCPD", "GEMSA"])
+# --- FORMULARIO ---
+with st.sidebar.form("form_registro"):
+    user = st.text_input("Usuario (Email)")
+    on_ticker = st.selectbox("ON", ["MGCOD", "YMCJD", "MR35D", "IRCPD"])
     cantidad = st.number_input("Cantidad", min_value=1)
     
-    if st.form_submit_button("Guardar en la Nube"):
-        # Guardamos el formato "TICKER:CANTIDAD" en la columna sheet_url
-        data_to_save = {"email": user_email, "sheet_url": f"{ticker}:{cantidad}"}
-        conn.table("usuarios_config").insert(data_to_save).execute()
-        st.success("¡Datos guardados!")
+    if st.form_submit_button("Guardar Datos"):
+        # Guardamos en tu tabla real
+        nueva_fila = {"email": user, "sheet_url": f"{on_ticker}:{cantidad}"}
+        conn.table("usuarios_config").insert(nueva_fila).execute()
+        st.success("¡Guardado!")
         st.rerun()
 
-# --- MOSTRAR CARTERA ---
-st.subheader("Registros en Base de Datos")
+# --- VISTA ---
 df = cargar_datos()
-
 if not df.empty:
-    st.table(df)
-else:
-    st.info("La base de datos está vacía. Cargá algo desde el costado.")
+    st.write("Datos en la Nube:")
+    st.dataframe(df)
