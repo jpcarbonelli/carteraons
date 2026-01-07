@@ -3,7 +3,7 @@ import pandas as pd
 from st_supabase_connection import SupabaseConnection
 
 # Conexión ultra-segura a Supabase
-conn = st.connection("supabase", type=SupabaseConnection)
+conn = st.connection("supabase", type=SupabaseConnection, ttl=0)
 
 st.title("🚀 Mi Cartera Permanente")
 
