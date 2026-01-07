@@ -2,48 +2,40 @@ import streamlit as st
 import pandas as pd
 from st_supabase_connection import SupabaseConnection
 
-# Configuración de página
 st.set_page_config(page_title="ON Investor Pro", layout="wide")
 
-# Conexión con manejo de errores
+# Conexión con manejo de errores para que no se caiga la app
 try:
     conn = st.connection("supabase", type=SupabaseConnection)
 except Exception:
     st.error("Error en la configuración de Secrets. Revisá el formato TOML.")
     st.stop()
 
-st.title("🚀 Mi Cartera Permanente")
+st.title("🚀 ON Investor Pro")
 
-# Función para leer datos
-def cargar_datos():
-    try:
-        # Consultamos tu tabla real
-        res = conn.table("usuarios_config").select("*").execute()
-        return pd.DataFrame(res.data)
-    except Exception as e:
-        st.info("La base de datos está conectada. Cargá tu primer activo para ver la tabla.")
-        return pd.DataFrame()
-
-# --- FORMULARIO LATERAL ---
-with st.sidebar.form("registro_on"):
-    st.header("Nuevo Registro")
+# Formulario de carga
+with st.sidebar.form("nueva_on"):
+    st.header("Cargar Activo")
     user = st.text_input("Usuario (Email)")
-    on_ticker = st.selectbox("Seleccioná ON", ["MGCOD", "YMCJD", "MR35D", "IRCPD", "GEMSA"])
-    cantidad = st.number_input("Cantidad", min_value=1, step=1)
-    
-    if st.form_submit_button("Guardar en Supabase"):
+    ticker = st.selectbox("Ticker", ["MGCOD", "YMCJD", "MR35D", "IRCPD", "GEMSA"])
+    cantidad = st.number_input("Cantidad", min_value=1)
+    if st.form_submit_button("Guardar Permanentemente"):
         if user:
-            # Insertamos en las columnas que tenés: email y sheet_url
-            nueva_on = {"email": user, "sheet_url": f"{on_ticker}:{cantidad}"}
-            conn.table("usuarios_config").insert(nueva_on).execute()
-            st.success("¡Guardado!")
+            nueva_fila = {"email": user, "sheet_url": f"{ticker}:{cantidad}"}
+            conn.table("usuarios_config").insert(nueva_fila).execute()
+            st.success("¡Guardado en la base de datos!")
             st.rerun()
         else:
-            st.warning("Por favor, poné un nombre de usuario.")
+            st.warning("Por favor ingresá un usuario.")
 
-# --- CUERPO PRINCIPAL ---
-df = cargar_datos()
-if not df.empty:
-    st.subheader("Datos guardados en la Nube")
-    # Limpiamos un poco la vista del DF
-    st.dataframe(df[["email", "sheet_url"]], use_container_width=True)
+# Mostrar tabla de datos
+try:
+    res = conn.table("usuarios_config").select("*").execute()
+    df = pd.DataFrame(res.data)
+    if not df.empty:
+        st.subheader("Tu Cartera Guardada")
+        st.dataframe(df)
+    else:
+        st.info("La base de datos está vacía.")
+except Exception as e:
+    st.info("Conexión establecida. Cargá un dato para inicializar.")
