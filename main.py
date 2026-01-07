@@ -7,15 +7,16 @@ st.set_page_config(page_title="ON Investor Pro", layout="wide")
 
 # --- BASE DE DATOS TÉCNICA (Tasas y Meses de Pago) ---
 # 'meses': [mes1, mes2] representan los meses del año en que paga cupón
+# --- DATOS FINANCIEROS REALES (Ajustalos según tus láminas) ---
 DATOS_ONS = {
-    "MGCOD": {"tasa": 0.08, "meses": [1, 7], "nombre": "Mastellone 2026"},
+    "MGCOD": {"tasa": 0.095, "meses": [5, 11], "nombre": "Mastellone 2026"},
     "YMCJD": {"tasa": 0.09, "meses": [3, 9], "nombre": "YPF 2026"},
     "MR35D": {"tasa": 0.095, "meses": [5, 11], "nombre": "Gen. Mediterránea"},
     "IRCPD": {"tasa": 0.0875, "meses": [1, 7], "nombre": "IRSA 2028"},
     "GEMSA": {"tasa": 0.10, "meses": [2, 8], "nombre": "MSU Energy"},
     "ARC1O": {"tasa": 0.07, "meses": [4, 10], "nombre": "Arcor 2027"},
     "YMCHO": {"tasa": 0.09, "meses": [1, 7], "nombre": "YPF 2029"},
-    "CSDO":  {"tasa": 0.08, "meses": [2, 8], "nombre": "Cresud 2026"},
+    "CSDO":  {"tasa": 0.08, "meses": [2, 8], "nombre": "Cresud 2026"}
 }
 
 st.title("📈 Flujo de Caja Mensual y Cartera")
