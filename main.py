@@ -2,10 +2,10 @@ import streamlit as st
 import pandas as pd
 from st_supabase_connection import SupabaseConnection
 
-st.set_page_config(page_title="ON Investor Pro", layout="wide")
-st.title("🚀 ON Investor Pro")
+st.set_page_config(page_title="Mi Cartera ONs", layout="wide")
+st.title("🚀 Mi Cartera de Inversión")
 
-# --- CONEXIÓN ROBUSTA ---
+# --- CONEXIÓN ---
 try:
     s_url = st.secrets["connections"]["supabase"]["url"]
     s_key = st.secrets["connections"]["supabase"]["key"]
@@ -17,40 +17,37 @@ try:
         key=s_key
     )
     
-    # Intentamos leer forzando el esquema public
-    # Usamos un try interno para que no se rompa la app si la tabla está recién creada
-    try:
-        res = conn.table("usuarios_config").select("*").execute()
-        st.success("✅ ¡Conectado y Tabla encontrada!")
-        
-        if res.data:
-            st.write("Registros actuales:")
-            st.dataframe(pd.DataFrame(res.data))
-        else:
-            st.info("La tabla 'usuarios_config' existe pero no tiene datos aún.")
-            
-    except Exception as e:
-        st.warning("La conexión es buena, pero la tabla 'usuarios_config' no responde.")
-        st.write("Si acabas de crear la tabla, esperá 1 minuto o verificá que el nombre sea exacto.")
+    # Intentamos leer la tabla 'carteras'
+    res = conn.table("carteras").select("*").execute()
+    df = pd.DataFrame(res.data)
+    
+    if not df.empty:
+        st.success("✅ Conectado a la tabla 'carteras'")
+        st.subheader("Tus Activos")
+        st.dataframe(df[["email", "ticker", "cantidad"]], use_container_width=True)
+    else:
+        st.info("La tabla está vacía. ¡Cargá tu primera ON!")
 
 except Exception as e:
-    st.error(f"Error crítico: {e}")
+    st.error(f"Error de conexión: {e}")
 
-# --- FORMULARIO DE CARGA ---
+# --- FORMULARIO DE CARGA (Usando tus columnas reales) ---
+st.sidebar.header("Nuevo Registro")
 with st.sidebar.form("form_carga"):
-    st.header("Cargar Activo")
-    user_email = st.text_input("Tu Email")
-    on_ticker = st.selectbox("Ticker", ["MGCOD", "YMCJD", "MR35D", "IRCPD", "GEMSA"])
-    cant = st.number_input("Cantidad", min_value=1)
+    user_email = st.text_input("Email")
+    ticker_input = st.selectbox("Ticker", ["MGCOD", "YMCJD", "MR35D", "IRCPD", "GEMSA"])
+    cantidad_input = st.number_input("Cantidad", min_value=1, step=1)
     
-    if st.form_submit_button("Guardar en Nube"):
+    if st.form_submit_button("Guardar"):
         if user_email:
-            # Intentamos insertar
-            conn.table("usuarios_config").insert({
+            # INSERTAMOS con los nombres de tus columnas: email, ticker, cantidad
+            nueva_fila = {
                 "email": user_email, 
-                "sheet_url": f"{on_ticker}:{cant}"
-            }).execute()
-            st.success("¡Datos guardados!")
+                "ticker": ticker_input, 
+                "cantidad": cantidad_input
+            }
+            conn.table("carteras").insert(nueva_fila).execute()
+            st.success("¡Guardado correctamente!")
             st.rerun()
         else:
-            st.error("Falta el email.")
+            st.warning("Poné un email para identificar tu cartera.")
