@@ -2,25 +2,34 @@ import streamlit as st
 import pandas as pd
 from st_supabase_connection import SupabaseConnection
 
-st.set_page_config(page_title="ON Investor Pro", layout="wide")
 st.title("🚀 ON Investor Pro")
 
-# Intentamos conectar usando los secretos
+# --- CONEXIÓN DIRECTA (A prueba de errores) ---
+# Buscamos las llaves directamente en la raíz de los secrets
 try:
-    # Esta es la forma estándar de Streamlit para conectar
-    conn = st.connection("supabase", type=SupabaseConnection)
+    # Intentamos obtener los valores directamente
+    s_url = st.secrets["connections"]["supabase"]["url"]
+    s_key = st.secrets["connections"]["supabase"]["key"]
     
-    # Probamos una consulta simple para ver si hay conexión real
-    res = conn.table("usuarios_config").select("email").limit(1).execute()
-    st.success("¡Conexión establecida con éxito!")
+    # Creamos la conexión pasando los parámetros manualmente
+    conn = st.connection(
+        "supabase", 
+        type=SupabaseConnection,
+        url=s_url,
+        key=s_key
+    )
     
-    # Formulario de prueba
-    with st.form("test_form"):
-        email = st.text_input("Tu nombre/email para probar")
-        if st.form_submit_button("Verificar Base de Datos"):
-            st.write(f"Hola {email}, la base de datos te reconoce.")
+    # Prueba de lectura
+    res = conn.table("usuarios_config").select("*").limit(1).execute()
+    st.success("¡CONECTADO CON ÉXITO! La base de datos responde.")
+    st.dataframe(pd.DataFrame(res.data))
 
 except Exception as e:
-    st.error("Todavía hay un problema con las credenciales en 'Secrets'.")
-    st.info("Asegurate de que en Secrets diga [connections.supabase] con la 'url' y la 'key' correctamente.")
-    st.write("Detalle técnico del error:", e)
+    st.error("Error de configuración de credenciales")
+    st.write("Asegurate de que tus Secrets sigan exactamente el formato TOML de abajo.")
+    st.code("""
+[connections.supabase]
+url = "tu_url_aqui"
+key = "tu_key_aqui"
+    """, language="toml")
+    st.write("Detalle del error:", e)
