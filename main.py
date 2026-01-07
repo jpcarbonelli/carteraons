@@ -4,14 +4,12 @@ from st_supabase_connection import SupabaseConnection
 
 st.title("🚀 ON Investor Pro")
 
-# --- CONEXIÓN DIRECTA (A prueba de errores) ---
-# Buscamos las llaves directamente en la raíz de los secrets
+# --- CONEXIÓN ---
 try:
-    # Intentamos obtener los valores directamente
+    # Traemos las credenciales de los secrets
     s_url = st.secrets["connections"]["supabase"]["url"]
     s_key = st.secrets["connections"]["supabase"]["key"]
     
-    # Creamos la conexión pasando los parámetros manualmente
     conn = st.connection(
         "supabase", 
         type=SupabaseConnection,
@@ -19,17 +17,21 @@ try:
         key=s_key
     )
     
-    # Prueba de lectura
-    res = conn.table("usuarios_config").select("*").limit(1).execute()
-    st.success("¡CONECTADO CON ÉXITO! La base de datos responde.")
-    st.dataframe(pd.DataFrame(res.data))
+    # Intentamos leer la tabla
+    res = conn.table("usuarios_config").select("*").execute()
+    
+    st.success("✅ ¡CONECTADO TOTALMENTE!")
+    
+    # Si hay datos, los mostramos
+    if res.data:
+        st.write("Datos actuales:")
+        st.dataframe(pd.DataFrame(res.data))
+    else:
+        st.info("Conexión exitosa, pero la tabla está vacía. ¡Listo para cargar!")
 
 except Exception as e:
-    st.error("Error de configuración de credenciales")
-    st.write("Asegurate de que tus Secrets sigan exactamente el formato TOML de abajo.")
-    st.code("""
-[connections.supabase]
-url = "tu_url_aqui"
-key = "tu_key_aqui"
-    """, language="toml")
-    st.write("Detalle del error:", e)
+    if "401" in str(e):
+        st.error("🔑 Error de Autenticación: La API Key es incorrecta o está incompleta.")
+        st.info("Copiá la 'anon public key' desde Supabase usando el botón de 'Copy' y pegala de nuevo en los Secrets.")
+    else:
+        st.error(f"Error inesperado: {e}")
