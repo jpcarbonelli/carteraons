@@ -12,7 +12,6 @@ try:
     s_url = st.secrets["connections"]["supabase"]["url"]
     s_key = st.secrets["connections"]["supabase"]["key"]
     conn = st.connection("supabase", type=SupabaseConnection, url=s_url, key=s_key)
-    # Leemos la base de datos
     res = conn.table("carteras").select("*").execute()
     df_db = pd.DataFrame(res.data)
 except Exception as e:
@@ -34,100 +33,102 @@ if not df_db.empty:
             tasa_cupon = float(fila.get('tasa', 0)) / 100
             ppc = float(fila.get('precio_promedio_compra', 100)) / 100 
             
-            # Rentabilidad Real (Current Yield)
-            renta_real = (tasa_cupon / ppc) if ppc > 0 else tasa_cupon
             pago_anual = cantidad * tasa_cupon
             pago_semestral = pago_anual / 2
             
-            # Procesar meses de cobro
-            meses_str = str(fila.get('meses_cobro', '1, 7'))
-            meses_indices = [int(m.strip()) for m in meses_str.split(",")]
+            meses_indices = [int(m.strip()) for m in str(fila.get('meses_cobro', '1, 7')).split(",")]
             
             for m in meses_indices:
                 cronograma.append({
-                    "Mes": meses_nombres[m-1],  # Nombre para el eje X
+                    "Mes": meses_nombres[m-1],
                     "USD": pago_semestral,
                     "Ticker": fila['ticker'],
-                    "Renta Real (CY)": renta_real,
-                    "Orden_Mes": m             # Número para ordenar
+                    "Orden_Mes": m
                 })
         except: continue
 
     if cronograma:
-        # Convertimos a DataFrame y ORDENAMOS por el número de mes
         df_flujo = pd.DataFrame(cronograma).sort_values("Orden_Mes")
         
         # --- MÉTRICAS ---
-        m1, m2, m3 = st.columns(3)
+        m1, m2 = st.columns(2)
         m1.metric("Flujo Anual Total", f"US$ {df_flujo['USD'].sum():,.2f}")
         
-        # Yield Promedio Ponderado
+        # Yield Promedio Ponderado de la Cartera Total
         if 'tasa' in df_db and 'precio_promedio_compra' in df_db:
-            yield_promedio = (df_db['tasa'] / df_db['precio_promedio_compra']).mean() / 100
-            m2.metric("Yield Promedio (CY)", f"{yield_promedio:.2%}")
-        
-        st.divider()
-        
-        # --- GRÁFICO (Respetando el orden cronológico) ---
-        # El parámetro 'category_orders' asegura que el gráfico siga el orden de meses_nombres
-        fig = px.bar(
-            df_flujo, 
-            x="Mes", 
-            y="USD", 
-            color="Ticker", 
-            title="Cobros Mensuales Proyectados (Orden Cronológico)", 
-            text_auto='.2f',
-            category_orders={"Mes": meses_nombres} 
-        )
+            y_prom = (df_db['tasa'] / df_db['precio_promedio_compra']).mean() / 100
+            m2.metric("Yield Promedio Cartera (CY)", f"{y_prom:.2%}")
+
+        # --- GRÁFICO ---
+        fig = px.bar(df_flujo, x="Mes", y="USD", color="Ticker", text_auto='.2f',
+                     category_orders={"Mes": meses_nombres}, title="Proyección de Cobros Mensuales")
         st.plotly_chart(fig, use_container_width=True)
 
         # --- GESTIÓN DE ACTIVOS ---
-        st.subheader("📋 Detalle y Gestión de Activos")
+        st.subheader("📋 Detalle de Activos Actuales")
         for _, fila in df_db.iterrows():
-            with st.expander(f"📌 {fila['ticker']} - Ver detalles"):
+            with st.expander(f"📌 {fila['ticker']} - {fila['cantidad']:,} nominales"):
                 c1, c2, c3 = st.columns(3)
-                c1.write(f"**Cantidad:** {fila['cantidad']:,}")
+                # Cálculo de renta real específica de este activo
+                r_real = (float(fila['tasa']) / float(fila['precio_promedio_compra'])) / 100
                 c1.write(f"**PPC:** {fila['precio_promedio_compra']}%")
+                c1.write(f"**Renta Real (CY):** {r_real:.2%}")
                 
-                c2.write(f"**Emisión:** {fila.get('f_emision')}")
                 c2.write(f"**Vencimiento:** {fila.get('f_vencimiento')}")
-                
                 if fila.get('f_vencimiento'):
                     try:
                         venc = datetime.strptime(str(fila['f_vencimiento']), '%Y-%m-%d').date()
-                        dias_faltan = (venc - hoy).days
-                        c3.warning(f"Días al Vencimiento: {max(0, dias_faltan)}")
-                    except: c3.write("Fecha vencimiento inválida")
+                        dias = (venc - hoy).days
+                        c2.write(f"**Días restantes:** {max(0, dias)}")
+                    except: pass
                 
-                # Botón de eliminar con refresco automático
-                if st.button("Eliminar", key=f"del_{fila['id']}"):
+                if st.button("Eliminar posición", key=f"del_{fila['id']}"):
                     conn.table("carteras").delete().eq("id", fila['id']).execute()
                     st.rerun()
 
-# --- SIDEBAR: FORMULARIO ---
+# --- SIDEBAR: CARGA CON FUSIÓN ---
 with st.sidebar:
-    st.header("📥 Nueva ON")
-    with st.form("form_v2", clear_on_submit=True):
+    st.header("📥 Registrar Operación")
+    st.info("Si el Ticker ya existe, la App sumará los nominales y recalculará el Precio Promedio automáticamente.")
+    
+    with st.form("form_smart", clear_on_submit=True):
         t = st.text_input("Ticker").upper()
-        c = st.number_input("Cantidad Nominal", min_value=0, step=500)
-        tas = st.number_input("Tasa Cupón Anual (%)", format="%.2f")
-        ppc_input = st.number_input("Precio Promedio de Compra (%)", value=100.0)
+        c_new = st.number_input("Cantidad Nominales", min_value=0, step=100)
+        tas = st.number_input("Tasa Cupón Anual (%)", format="%.3f")
+        p_new = st.number_input("Precio de esta compra (%)", value=100.0)
         
-        f_emi = st.date_input("Fecha de Emisión")
-        f_ven = st.date_input("Fecha de Vencimiento")
+        f_emi = st.date_input("Fecha Emisión")
+        f_ven = st.date_input("Fecha Vencimiento")
+        mes = st.text_input("Meses Pago (ej: 1, 7)", value="1, 7")
         
-        mes = st.text_input("Meses de Pago (ej: 1, 7)", value="1, 7")
-        
-        if st.form_submit_button("Guardar Activo"):
-            if t and c > 0:
-                conn.table("carteras").insert({
-                    "email": "jpcarbonelli@yahoo.com.ar",
-                    "ticker": t,
-                    "cantidad": c,
-                    "tasa": tas,
-                    "precio_promedio_compra": ppc_input,
-                    "f_emision": str(f_emi),
-                    "f_vencimiento": str(f_ven),
-                    "meses_cobro": mes
-                }).execute()
-                st.rerun() # Refresco automático para cargar el siguiente ticker
+        if st.form_submit_button("Confirmar Transacción"):
+            if t and c_new > 0:
+                # Buscamos si el ticker ya está en la base
+                existente = df_db[df_db['ticker'] == t] if not df_db.empty else pd.DataFrame()
+                
+                if not existente.empty:
+                    # FUSIÓN: Promedio Ponderado
+                    fila_v = existente.iloc[0]
+                    c_old = float(fila_v['cantidad'])
+                    p_old = float(fila_v['precio_promedio_compra'])
+                    
+                    c_total = c_old + c_new
+                    p_ponderado = ((c_old * p_old) + (c_new * p_new)) / c_total
+                    
+                    conn.table("carteras").update({
+                        "cantidad": c_total,
+                        "precio_promedio_compra": round(p_ponderado, 3),
+                        "tasa": tas, # Actualizamos por si hubo cambio de condiciones
+                        "f_vencimiento": str(f_ven) # Actualizamos fecha por las dudas
+                    }).eq("id", fila_v['id']).execute()
+                    st.success(f"Posición de {t} actualizada correctamente.")
+                else:
+                    # CARGA NUEVA
+                    conn.table("carteras").insert({
+                        "email": "jpcarbonelli@yahoo.com.ar", "ticker": t,
+                        "cantidad": c_new, "tasa": tas, "precio_promedio_compra": p_new,
+                        "f_emision": str(f_emi), "f_vencimiento": str(f_ven), "meses_cobro": mes
+                    }).execute()
+                    st.success(f"Nuevo activo {t} agregado.")
+                
+                st.rerun()
