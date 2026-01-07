@@ -28,16 +28,14 @@ if not df_db.empty:
     cronograma = []
     meses_nombres = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     
-    # Procesamos cada activo para generar los cobros
     for _, fila in df_db.iterrows():
         try:
-            # Cálculo financiero
+            # Cálculo financiero: Cantidad * (Tasa/100) / 2 (pago semestral)
             cantidad = float(fila['cantidad'])
             tasa = float(fila.get('tasa', 0)) / 100
-            pago_anual = cantidad * tasa
-            pago_semestral = pago_anual / 2
+            pago_semestral = (cantidad * tasa) / 2
             
-            # Procesamos los meses (convertimos "1, 7" en lista [1, 7])
+            # Procesamos los meses (ej: "1, 7" -> [1, 7])
             meses_str = str(fila.get('meses_cobro', '1, 7'))
             meses = [int(m.strip()) for m in meses_str.split(",")]
             
@@ -74,28 +72,50 @@ if not df_db.empty:
             total_anual = df_flujo["USD"].sum()
             st.metric("Total Intereses Anuales", f"US$ {total_anual:,.2f}")
             st.metric("Promedio Mensual", f"US$ {total_anual/12:,.2f}")
-            st.info("Este cálculo asume que todas las ONs pagan cupones semestrales.")
 
         st.markdown("---")
 
-        # --- SECCIÓN 2: GESTIÓN DE ACTIVOS ---
+        # --- SECCIÓN 2: GESTIÓN DE ACTIVOS (BORRADO) ---
         st.subheader("📋 Gestión de Cartera")
-        st.write("Aquí podés ver tus datos guardados y eliminar registros viejos.")
         
-        # Encabezados de tabla manual para incluir el botón de borrar
+        # Encabezados de tabla
         h1, h2, h3, h4, h5 = st.columns([2, 2, 1, 2, 1])
         h1.write("**Ticker**")
         h2.write("**Cantidad**")
         h3.write("**Tasa**")
         h4.write("**Meses Pago**")
-        h5.write("**Acción**")
+        h5.write("**Borrar**")
 
         for _, fila in df_db.iterrows():
             c1, c2, c3, c4, c5 = st.columns([2, 2, 1, 2, 1])
-            c1.write(f"**{fila['ticker']}**")
+            c1.write(fila['ticker'])
             c2.write(f"{fila['cantidad']:,}")
             c3.write(f"{fila['tasa']}%")
             c4.write(fila['meses_cobro'])
             
-            # Botón para borrar usando el ID de la fila
-            if c5.button("🗑️", key
+            # AQUÍ ESTABA EL ERROR: Ahora el paréntesis está bien cerrado
+            if c5.button("🗑️", key=f"del_{fila['id']}"):
+                conn.table("carteras").delete().eq("id", fila['id']).execute()
+                st.rerun()
+else:
+    st.info("Aún no hay datos. Utilizá el panel lateral para cargar tus activos.")
+
+# --- SECCIÓN 3: PANEL LATERAL DE CARGA ---
+with st.sidebar:
+    st.header("📥 Cargar Nuevo Activo")
+    with st.form("nuevo_activo", clear_on_submit=True):
+        nuevo_ticker = st.text_input("Ticker (ej: MGCOD)").upper()
+        nueva_cantidad = st.number_input("Cantidad Nominal", min_value=0, step=500)
+        nueva_tasa = st.number_input("Tasa Anual (%)", min_value=0.0, format="%.2f")
+        nuevos_meses = st.text_input("Meses de cobro (ej: 3, 9)", value="1, 7")
+        
+        if st.form_submit_button("Guardar en Nube"):
+            if nuevo_ticker and nueva_cantidad > 0:
+                conn.table("carteras").insert({
+                    "email": "jpcarbonelli@yahoo.com.ar",
+                    "ticker": nuevo_ticker,
+                    "cantidad": nueva_cantidad,
+                    "tasa": nueva_tasa,
+                    "meses_cobro": nuevos_meses
+                }).execute()
+                st.rerun()
