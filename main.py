@@ -8,12 +8,24 @@ st.title("🚀 ON Investor Pro")
 
 # --- BASE MAESTRA ACTUALIZADA ---
 base_maestra = {
-    "MGCOD": {"tasa": 0.0787, "sector": "Energía", "estado": "Vigente"},
-    "YMCJD": {"tasa": 0.0900, "sector": "Petróleo", "estado": "Vigente"},
+    base_maestra = {
+    "MGCOD": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
+    "YMCJD": {"tasa": 0.0900, "sector": "Petróleo & Gas", "estado": "Vigente"},
     "MR35D": {"tasa": 0.0950, "sector": "Consumo Masivo", "estado": "Vigente"},
-    "GEMSA": {"tasa": 0.0000, "sector": "Energía", "estado": "Default"},
+    "VSCTD": {"tasa": 0.0850, "sector": "Petróleo & Gas", "estado": "Vigente"},
     "IRCPD": {"tasa": 0.0800, "sector": "Real Estate", "estado": "Vigente"},
-    "PLC4D": {"tasa": 0.0800, "sector": "Telecomunicaciones", "estado": "Vigente"}
+    "HJCID": {"tasa": 0.0825, "sector": "Energía", "estado": "Vigente"},
+    "HJCJD": {"tasa": 0.0825, "sector": "Energía", "estado": "Vigente"},
+    "PN36D": {"tasa": 0.0900, "sector": "Petróleo & Gas", "estado": "Vigente"},
+    "PLC4D": {"tasa": 0.0800, "sector": "Telecomunicaciones", "estado": "Vigente"},
+    "TLCQD": {"tasa": 0.0850, "sector": "Telecomunicaciones", "estado": "Vigente"},
+    "TLCPD": {"tasa": 0.0850, "sector": "Telecomunicaciones", "estado": "Vigente"},
+    "CS48D": {"tasa": 0.0750, "sector": "Real Estate", "estado": "Vigente"},
+    "CS49D": {"tasa": 0.0750, "sector": "Real Estate", "estado": "Vigente"},
+    "CIC9D": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
+    "CICAD": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
+    "GEMSA": {"tasa": 0.0000, "sector": "Energía", "estado": "Default"}
+}
 }
 
 # --- ESTADO DE LA APP ---
