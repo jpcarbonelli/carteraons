@@ -1,56 +1,40 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+from st_supabase_connection import SupabaseConnection
 
-st.set_page_config(page_title="ON Investor Pro", layout="wide")
-st.title("🚀 ON Investor Pro")
+# Conexión ultra-segura a Supabase
+conn = st.connection("supabase", type=SupabaseConnection)
 
-# --- BASE MAESTRA LIMPIA ---
-base_maestra = {
-    "MGCOD": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
-    "YMCJD": {"tasa": 0.0900, "sector": "Petróleo & Gas", "estado": "Vigente"},
-    "MR35D": {"tasa": 0.0950, "sector": "Consumo Masivo", "estado": "Vigente"},
-    "VSCTD": {"tasa": 0.0850, "sector": "Petróleo & Gas", "estado": "Vigente"},
-    "IRCPD": {"tasa": 0.0800, "sector": "Real Estate", "estado": "Vigente"},
-    "HJCID": {"tasa": 0.0825, "sector": "Energía", "estado": "Vigente"},
-    "HJCJD": {"tasa": 0.0825, "sector": "Energía", "estado": "Vigente"},
-    "PN36D": {"tasa": 0.0900, "sector": "Petróleo & Gas", "estado": "Vigente"},
-    "PLC4D": {"tasa": 0.0800, "sector": "Telecomunicaciones", "estado": "Vigente"},
-    "TLCQD": {"tasa": 0.0850, "sector": "Telecomunicaciones", "estado": "Vigente"},
-    "TLCPD": {"tasa": 0.0850, "sector": "Telecomunicaciones", "estado": "Vigente"},
-    "CS48D": {"tasa": 0.0750, "sector": "Real Estate", "estado": "Vigente"},
-    "CS49D": {"tasa": 0.0750, "sector": "Real Estate", "estado": "Vigente"},
-    "CIC9D": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
-    "CICAD": {"tasa": 0.0800, "sector": "Energía", "estado": "Vigente"},
-    "GEMSA": {"tasa": 0.0000, "sector": "Energía", "estado": "Default"}
-}
+st.title("🚀 Mi Cartera Permanente")
 
-if 'cartera' not in st.session_state:
-    st.session_state.cartera = pd.DataFrame(columns=["Ticker", "Cantidad", "Sector", "Cobro_Estimado"])
+# Función para traer los datos guardados
+def cargar_datos():
+    try:
+        # Traemos email (como usuario) y sheet_url (donde guardaremos el ticker:cantidad)
+        res = conn.table("usuarios_config").select("email, sheet_url").execute()
+        return pd.DataFrame(res.data)
+    except:
+        return pd.DataFrame(columns=["email", "sheet_url"])
 
-st.sidebar.header("Menú de Usuario")
-with st.sidebar.expander("➕ Cargar Nuevo Activo", expanded=True):
-    ticker = st.selectbox("Seleccioná Ticker", list(base_maestra.keys()))
-    nominales = st.number_input("Nominales", min_value=0, step=100)
-    if st.button("Guardar"):
-        on_info = base_maestra[ticker]
-        nuevo_item = {
-            "Ticker": ticker, 
-            "Cantidad": nominales,
-            "Sector": on_info['sector'],
-            "Cobro_Estimado": (nominales * on_info['tasa']) / 2 if on_info['estado'] == "Vigente" else 0
-        }
-        st.session_state.cartera = pd.concat([st.session_state.cartera, pd.DataFrame([nuevo_item])], ignore_index=True)
+# --- FORMULARIO DE CARGA ---
+with st.sidebar.form("formulario_on"):
+    st.header("Cargar Activo")
+    user_email = st.text_input("Tu Email o Nombre")
+    ticker = st.selectbox("Ticker", ["MGCOD", "YMCJD", "MR35D", "IRCPD", "GEMSA"])
+    cantidad = st.number_input("Cantidad", min_value=1)
+    
+    if st.form_submit_button("Guardar en la Nube"):
+        # Guardamos el formato "TICKER:CANTIDAD" en la columna sheet_url
+        data_to_save = {"email": user_email, "sheet_url": f"{ticker}:{cantidad}"}
+        conn.table("usuarios_config").insert(data_to_save).execute()
+        st.success("¡Datos guardados!")
+        st.rerun()
 
-if not st.session_state.cartera.empty:
-    col1, col2 = st.columns(2)
-    with col1:
-        fig_pie = px.pie(st.session_state.cartera, values='Cantidad', names='Sector', title="Diversificación por Sector")
-        st.plotly_chart(fig_pie)
-    with col2:
-        fig_bar = px.bar(st.session_state.cartera, x='Ticker', y='Cobro_Estimado', title="Cobro Próximo Cupón (USD)")
-        st.plotly_chart(fig_bar)
-    st.subheader("Tu Detalle de Cartera")
-    st.dataframe(st.session_state.cartera)
+# --- MOSTRAR CARTERA ---
+st.subheader("Registros en Base de Datos")
+df = cargar_datos()
+
+if not df.empty:
+    st.table(df)
 else:
-    st.info("Cargá tu primer activo en el menú lateral para empezar.")
+    st.info("La base de datos está vacía. Cargá algo desde el costado.")
