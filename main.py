@@ -52,8 +52,7 @@ if not df_db.empty:
         
         # --- MÉTRICAS ---
         m1, m2, m3 = st.columns(3)
-        total_flujo = df_flujo['USD'].sum()
-        m1.metric("Flujo Anual Total", f"US$ {total_flujo:,.2f}")
+        m1.metric("Flujo Anual Total", f"US$ {df_flujo['USD'].sum():,.2f}")
         
         if 'tasa' in df_db and 'precio_promedio_compra' in df_db:
             y_prom = (df_db['tasa'] / df_db['precio_promedio_compra']).mean() / 100
@@ -76,14 +75,71 @@ if not df_db.empty:
         st.subheader("📋 Detalle de la Cartera")
         for _, fila in df_db.iterrows():
             with st.expander(f"📌 {fila['ticker']} - {fila['cantidad']:,} nominales"):
-                c1, c2, c3 = st.columns(3)
-                c1.write(f"**PPC:** {fila['precio_promedio_compra']}%")
-                c1.write(f"**Tasa:** {fila['tasa']}%")
+                col1, col2, col3 = st.columns(3)
                 
-                c2.write(f"**Emisión:** {fila.get('f_emision', 'S/D')}")
-                c2.write(f"**Vencimiento:** {fila.get('f_vencimiento', 'S/D')}")
+                col1.write(f"**PPC:** {fila.get('precio_promedio_compra', 100)}%")
+                col1.write(f"**Tasa:** {fila.get('tasa', 0)}%")
                 
-                if fila.get('f_vencimiento'):
+                col2.write(f"**Emisión:** {fila.get('f_emision', 'S/D')}")
+                col2.write(f"**Vencimiento:** {fila.get('f_vencimiento', 'S/D')}")
+                
+                # Cálculo de días al vencimiento
+                f_venc = fila.get('f_vencimiento')
+                if f_venc:
                     try:
-                        venc = datetime.strptime(str(fila['f_vencimiento']), '%Y-%m-%d').date()
-                        dias_faltan
+                        venc_dt = datetime.strptime(str(f_venc), '%Y-%m-%d').date()
+                        dias_restantes = (venc_dt - hoy).days
+                        col3.info(f"Días restantes: {max(0, dias_restantes)}")
+                    except:
+                        col3.write("Fecha no válida")
+                
+                if st.button("Eliminar", key=f"btn_del_{fila['id']}"):
+                    conn.table("carteras").delete().eq("id", fila['id']).execute()
+                    st.rerun()
+
+# --- SIDEBAR: REGISTRO ---
+with st.sidebar:
+    st.header("📥 Registrar Operación")
+    with st.form("form_registro", clear_on_submit=True):
+        t = st.text_input("Ticker").upper()
+        c_new = st.number_input("Cantidad", min_value=0, step=100)
+        tas = st.number_input("Tasa Cupón (%)", format="%.3f")
+        p_new = st.number_input("Precio Compra (%)", value=100.0)
+        f_emi = st.date_input("Fecha Emisión")
+        f_ven = st.date_input("Fecha Vencimiento")
+        mes = st.text_input("Meses Pago (ej: 1, 7)", value="1, 7")
+        
+        if st.form_submit_button("Confirmar Transacción"):
+            if t and c_new > 0:
+                try:
+                    # Lógica de Fusión Automática
+                    existente = df_db[df_db['ticker'] == t] if not df_db.empty else pd.DataFrame()
+                    
+                    if not existente.empty:
+                        f_v = existente.iloc[0]
+                        c_old = float(f_v['cantidad'])
+                        p_old = float(f_v['precio_promedio_compra'])
+                        c_tot = c_old + c_new
+                        p_ponderado = ((c_old * p_old) + (c_new * p_new)) / c_tot
+                        
+                        conn.table("carteras").update({
+                            "cantidad": c_tot,
+                            "precio_promedio_compra": round(p_ponderado, 3),
+                            "tasa": tas,
+                            "f_emision": str(f_emi),
+                            "f_vencimiento": str(f_ven)
+                        }).eq("id", f_v['id']).execute()
+                    else:
+                        conn.table("carteras").insert({
+                            "email": "jpcarbonelli@yahoo.com.ar",
+                            "ticker": t,
+                            "cantidad": c_new,
+                            "tasa": tas,
+                            "precio_promedio_compra": p_new,
+                            "f_emision": str(f_emi),
+                            "f_vencimiento": str(f_ven),
+                            "meses_cobro": mes
+                        }).execute()
+                    st.rerun()
+                except Exception as e:
+                    st.error("Error de permisos. Ejecuta el SQL en Supabase.")
