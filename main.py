@@ -44,7 +44,8 @@ if not df_db.empty:
                     "Ticker": fila['ticker'],
                     "Orden_Mes": m
                 })
-        except: continue
+        except:
+            continue
 
     if cronograma:
         df_flujo = pd.DataFrame(cronograma).sort_values("Orden_Mes")
@@ -79,11 +80,10 @@ if not df_db.empty:
                 c1.write(f"**PPC:** {fila['precio_promedio_compra']}%")
                 c1.write(f"**Tasa:** {fila['tasa']}%")
                 
-                # Aquí agregamos la visualización de la fecha de emisión
                 c2.write(f"**Emisión:** {fila.get('f_emision', 'S/D')}")
                 c2.write(f"**Vencimiento:** {fila.get('f_vencimiento', 'S/D')}")
                 
                 if fila.get('f_vencimiento'):
                     try:
                         venc = datetime.strptime(str(fila['f_vencimiento']), '%Y-%m-%d').date()
-                        dias = (venc
+                        dias_faltan
