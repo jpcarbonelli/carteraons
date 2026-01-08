@@ -12,7 +12,6 @@ try:
     s_url = st.secrets["connections"]["supabase"]["url"]
     s_key = st.secrets["connections"]["supabase"]["key"]
     conn = st.connection("supabase", type=SupabaseConnection, url=s_url, key=s_key)
-    # Leemos los datos actualizados
     res = conn.table("carteras").select("*").execute()
     df_db = pd.DataFrame(res.data)
 except Exception as e:
@@ -56,7 +55,6 @@ if not df_db.empty:
         m1.metric("Flujo Anual Total", f"US$ {total_flujo:,.2f}")
         
         if 'tasa' in df_db and 'precio_promedio_compra' in df_db:
-            # Yield promedio simple
             y_prom = (df_db['tasa'] / df_db['precio_promedio_compra']).mean() / 100
             m2.metric("Yield Promedio (CY)", f"{y_prom:.2%}")
         
@@ -73,12 +71,11 @@ if not df_db.empty:
 
         st.divider()
 
-        # --- GESTIÓN DE ACTIVOS (CORREGIDO) ---
+        # --- GESTIÓN DE ACTIVOS ---
         st.subheader("📋 Detalle de la Cartera")
         for _, fila in df_db.iterrows():
             with st.expander(f"📌 {fila['ticker']} - {fila['cantidad']:,} nominales"):
                 c1, c2, c3 = st.columns(3)
-                # Corregido f-string de PPC
                 c1.write(f"**PPC:** {fila['precio_promedio_compra']}%")
                 c1.write(f"**Tasa:** {fila['tasa']}%")
                 
@@ -102,8 +99,6 @@ with st.sidebar:
         c_new = st.number_input("Cantidad Nominales", min_value=0, step=100)
         tas = st.number_input("Tasa Cupón (%)", format="%.3f")
         p_new = st.number_input("Precio de Compra (%)", value=100.0)
-        
-        f_emi = st.date_input("Fecha Emisión")
         f_ven = st.date_input("Fecha Vencimiento")
         mes = st.text_input("Meses Pago (ej: 1, 7)", value="1, 7")
         
@@ -129,8 +124,8 @@ with st.sidebar:
                         conn.table("carteras").insert({
                             "email": "jpcarbonelli@yahoo.com.ar", "ticker": t,
                             "cantidad": c_new, "tasa": tas, "precio_promedio_compra": p_new,
-                            "f_emision": str(f_emi), "f_vencimiento": str(f_ven), "meses_cobro": mes
+                            "f_vencimiento": str(f_ven), "meses_cobro": mes
                         }).execute()
                     st.rerun()
                 except Exception as e:
-                    st.error("Error al guardar. Verificá los permisos de UPDATE en Supabase.")
+                    st.error("Error al guardar. Verifica los permisos de UPDATE en Supabase.")
