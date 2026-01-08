@@ -79,53 +79,11 @@ if not df_db.empty:
                 c1.write(f"**PPC:** {fila['precio_promedio_compra']}%")
                 c1.write(f"**Tasa:** {fila['tasa']}%")
                 
+                # Aquí agregamos la visualización de la fecha de emisión
+                c2.write(f"**Emisión:** {fila.get('f_emision', 'S/D')}")
                 c2.write(f"**Vencimiento:** {fila.get('f_vencimiento', 'S/D')}")
+                
                 if fila.get('f_vencimiento'):
                     try:
                         venc = datetime.strptime(str(fila['f_vencimiento']), '%Y-%m-%d').date()
-                        dias = (venc - hoy).days
-                        c2.write(f"**Días para Vencer:** {max(0, dias)}")
-                    except: pass
-                
-                if st.button("Eliminar posición", key=f"del_{fila['id']}"):
-                    conn.table("carteras").delete().eq("id", fila['id']).execute()
-                    st.rerun()
-
-# --- SIDEBAR: REGISTRO ---
-with st.sidebar:
-    st.header("📥 Registrar Operación")
-    with st.form("form_smart", clear_on_submit=True):
-        t = st.text_input("Ticker (ej: MGCOD)").upper()
-        c_new = st.number_input("Cantidad Nominales", min_value=0, step=100)
-        tas = st.number_input("Tasa Cupón (%)", format="%.3f")
-        p_new = st.number_input("Precio de Compra (%)", value=100.0)
-        f_ven = st.date_input("Fecha Vencimiento")
-        mes = st.text_input("Meses Pago (ej: 1, 7)", value="1, 7")
-        
-        if st.form_submit_button("Confirmar Transacción"):
-            if t and c_new > 0:
-                try:
-                    existente = df_db[df_db['ticker'] == t] if not df_db.empty else pd.DataFrame()
-                    
-                    if not existente.empty:
-                        fila_v = existente.iloc[0]
-                        c_old = float(fila_v['cantidad'])
-                        p_old = float(fila_v['precio_promedio_compra'])
-                        c_total = c_old + c_new
-                        p_final = ((c_old * p_old) + (c_new * p_new)) / c_total
-                        
-                        conn.table("carteras").update({
-                            "cantidad": c_total,
-                            "precio_promedio_compra": round(p_final, 3),
-                            "tasa": tas,
-                            "f_vencimiento": str(f_ven)
-                        }).eq("id", fila_v['id']).execute()
-                    else:
-                        conn.table("carteras").insert({
-                            "email": "jpcarbonelli@yahoo.com.ar", "ticker": t,
-                            "cantidad": c_new, "tasa": tas, "precio_promedio_compra": p_new,
-                            "f_vencimiento": str(f_ven), "meses_cobro": mes
-                        }).execute()
-                    st.rerun()
-                except Exception as e:
-                    st.error("Error al guardar. Verifica los permisos de UPDATE en Supabase.")
+                        dias = (venc
